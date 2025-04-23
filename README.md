@@ -98,7 +98,7 @@ streamlit run app/dashboard.py --server.fileWatcherType none
 │   ├── search/
 │   │   └── semantic_search.py
 │   └── visualization/
-│       └── embedding_visualizer.py
+│       └── cluster.py
 ├── app/
 │   └── dashboard.py        # Streamlit app
 ├── main.py                 # Pipeline orchestration
@@ -148,9 +148,3 @@ streamlit
 2. Create a feature branch
 3. Commit your changes
 4. Open a pull request
-
----
-
-## License
-
-MIT License © Your Name
