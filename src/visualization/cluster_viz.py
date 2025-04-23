@@ -1,9 +1,10 @@
-# src/visualization/embedding_visualizer.py
-
 import os
 import pickle
 import logging
+from typing import Dict, List, Optional
+
 import numpy as np
+from sklearn.preprocessing import normalize
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
@@ -13,216 +14,198 @@ import umap
 
 from src.processing.generate_embeddings import EmbeddingGenerator
 
-# Configuração do logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class EmbeddingVisualizer:
     """
-    Classe para carregar (ou gerar) embeddings e gerar visualizações de clusters.
+    Loads (or generates) embeddings and provides methods
+    to visualize them via scatter plots and clustered plots.
     """
 
-    def __init__(self,
-                 embeddings_file: str = "embeddings/document_embeddings.pkl",
-                 processed_docs_folder: str = "data/processed/"):
-        """
-        Inicializa o EmbeddingVisualizer.
-
-        Se o arquivo de embeddings não existir, ele será gerado automaticamente.
-        """
+    def __init__(
+        self,
+        embeddings_file: str = "embeddings/document_embeddings.pkl",
+        processed_docs_folder: str = "data/processed/"
+    ):
         self.embeddings_file = embeddings_file
         self.processed_docs_folder = processed_docs_folder
-        self.doc_names = None
-        self.doc_embeddings = None
+        self.doc_names: List[str] = []
+        self.doc_embeddings: Optional[np.ndarray] = None
 
-        # Gera embeddings se não existir
+        # Generate embeddings if missing
         if not os.path.exists(self.embeddings_file):
-            logging.warning(f"Arquivo de embeddings não encontrado: {self.embeddings_file}. Gerando agora...")
-            gen = EmbeddingGenerator(
+            logging.warning(f"Embeddings file not found: {self.embeddings_file}. Generating now...")
+            generator = EmbeddingGenerator(
                 processed_docs_folder=self.processed_docs_folder,
                 embeddings_file=self.embeddings_file
             )
-            gen.run()
+            generator.run()
             if not os.path.exists(self.embeddings_file):
-                logging.error("Falha ao gerar embeddings. Verifique o pipeline anterior.")
-                raise FileNotFoundError(f"Não foi possível criar {self.embeddings_file}")
+                raise FileNotFoundError(f"Failed to generate embeddings at {self.embeddings_file}")
 
         self._load_embeddings()
 
-    def _load_embeddings(self):
-        """Carrega o dicionário de embeddings em memória."""
+    def _load_embeddings(self) -> None:
+        """Load and normalize embeddings from disk."""
         try:
-            with open(self.embeddings_file, "rb") as f:
-                embeddings_dict = pickle.load(f)
-            self.doc_names = list(embeddings_dict.keys())
-            self.doc_embeddings = np.array(list(embeddings_dict.values()))
-            logging.info(f"{len(self.doc_names)} embeddings carregados de {self.embeddings_file}")
+            with open(self.embeddings_file, 'rb') as f:
+                data: Dict[str, np.ndarray] = pickle.load(f)
+            self.doc_names = list(data.keys())
+            emb = np.vstack(list(data.values()))
+            self.doc_embeddings = normalize(emb)  # unit‐length rows
+            logging.info(f"Loaded and normalized {len(self.doc_names)} embeddings.")
         except Exception as e:
-            logging.error(f"Erro ao carregar embeddings: {e}")
-            self.doc_names = None
+            logging.error(f"Error loading embeddings: {e}")
             self.doc_embeddings = None
 
-    def _reduce_dimensionality(self, embeddings, method: str):
-        logging.info(f"Reduzindo dimensionalidade com {method.upper()}...")
+    def _reduce_dimensionality(
+        self,
+        embeddings: np.ndarray,
+        method: str
+    ) -> Optional[np.ndarray]:
+        """Reduce embeddings to 2D via PCA, t-SNE, or UMAP."""
+        logging.info(f"Reducing dimensionality with {method.upper()}")
         try:
-            if method == "tsne":
+            if method == 'pca':
+                return PCA(n_components=2, random_state=42).fit_transform(embeddings)
+
+            if method == 'tsne':
                 if embeddings.shape[1] > 50:
-                    pca_dim = min(50, embeddings.shape[1])
-                    embeddings = PCA(n_components=pca_dim, random_state=42)\
-                                 .fit_transform(embeddings)
-                perplexity = min(30, max(5, len(embeddings)-1))
-                return TSNE(n_components=2, perplexity=perplexity,
-                            random_state=42, n_jobs=-1)\
-                       .fit_transform(embeddings)
+                    embeddings = PCA(n_components=50, random_state=42).fit_transform(embeddings)
+                return TSNE(n_components=2, random_state=42, init='pca').fit_transform(embeddings)
 
-            if method == "umap":
-                n_neighbors = min(15, max(5, len(embeddings)-1))
-                return umap.UMAP(n_components=2, n_neighbors=n_neighbors,
-                                 random_state=42).fit_transform(embeddings)
+            if method == 'umap':
+                return umap.UMAP(n_components=2, random_state=42).fit_transform(embeddings)
 
-            if method == "pca":
-                return PCA(n_components=2, random_state=42)\
-                       .fit_transform(embeddings)
-
-            logging.error(f"Método de redução desconhecido: {method}")
+            logging.error(f"Unknown reduction method: {method}")
             return None
-
         except Exception as e:
-            logging.error(f"Erro na redução ({method}): {e}")
+            logging.error(f"Error during dimensionality reduction ({method}): {e}")
             return None
 
-    def _cluster_embeddings(self, embeddings, n_clusters: int):
-        logging.info(f"Agrupando em {n_clusters} clusters com K-Means...")
+    def _cluster_embeddings(
+        self,
+        embeddings: np.ndarray,
+        n_clusters: int
+    ) -> Optional[np.ndarray]:
+        """Cluster embeddings into n_clusters via KMeans."""
+        logging.info(f"Clustering into {n_clusters} clusters with KMeans")
         try:
-            labels = KMeans(n_clusters=n_clusters, random_state=42,
-                            n_init=10).fit_predict(embeddings)
-            return labels
+            return KMeans(n_clusters=n_clusters, random_state=42, n_init=10).fit_predict(embeddings)
         except Exception as e:
-            logging.error(f"Erro no K-Means: {e}")
+            logging.error(f"Error during KMeans clustering: {e}")
             return None
 
-    def _extract_cluster_keywords(self, labels, n_clusters):
-        stop_words = { ... }  # mesma lista de stopwords de antes
-
-        keywords = {}
+    def _extract_cluster_keywords(
+        self,
+        labels: np.ndarray,
+        n_clusters: int
+    ) -> Dict[int, str]:
+        """Extract up to 3 representative keywords per cluster from filenames."""
+        stop_words = {
+            'and','the','for','with','from','that','this','are','not','but','have','has'
+        }
+        keywords: Dict[int, str] = {}
         for cid in range(n_clusters):
-            docs = [self.doc_names[i] for i, l in enumerate(labels) if l == cid]
-            if not docs:
-                keywords[cid] = f"Cluster {cid+1} vazio"
+            members = [self.doc_names[i] for i, lab in enumerate(labels) if lab == cid]
+            if not members:
+                keywords[cid] = f"Cluster {cid} (empty)"
                 continue
-
-            words = []
-            for d in docs:
-                tokens = d.replace('.txt','').replace('_',' ').split()
-                words += tokens
-
-            freq = {}
-            for w in words:
-                wl = w.lower()
-                if wl not in stop_words and len(wl)>2 and not wl.isdigit():
-                    freq[wl] = freq.get(wl,0)+1
-
+            tokens = []
+            for name in members:
+                tokens.extend(name.replace('.txt','').replace('_',' ').split())
+            freq: Dict[str,int] = {}
+            for tok in tokens:
+                tok_l = tok.lower()
+                if tok_l.isalpha() and len(tok_l)>2 and tok_l not in stop_words:
+                    freq[tok_l] = freq.get(tok_l,0)+1
             top = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:3]
-            if top:
-                keywords[cid] = ", ".join(w for w,_ in top)
-            else:
-                keywords[cid] = docs[0][:15] + "..."
-        logging.info("Palavras-chave extraídas.")
+            keywords[cid] = ', '.join(w for w,_ in top) if top else members[0]
         return keywords
 
-    def plot_clean(self, method: str):
-        """Scatter simples dos embeddings reduzidos."""
+    def plot_scatter(self, method: str = 'pca') -> Optional[plt.Figure]:
+        """Simple 2D scatter of reduced embeddings."""
         if self.doc_embeddings is None:
-            logging.error("Embeddings não carregados.")
+            logging.error("No embeddings loaded for scatter plot.")
             return None
-
-        red = self._reduce_dimensionality(self.doc_embeddings, method)
-        if red is None: return None
-
+        reduced = self._reduce_dimensionality(self.doc_embeddings, method)
+        if reduced is None:
+            return None
         fig, ax = plt.subplots(figsize=(12,8))
-        ax.scatter(red[:,0], red[:,1], alpha=0.7)
-        ax.set_title(f"Embeddings ({method.upper()})")
-        ax.set_xlabel("Dim 1")
-        ax.set_ylabel("Dim 2")
+        ax.scatter(reduced[:,0], reduced[:,1], alpha=0.7)
+        ax.set_title(f"Embedding Scatter ({method.upper()})")
+        ax.set_xlabel("Component 1")
+        ax.set_ylabel("Component 2")
         plt.tight_layout()
         return fig
 
-    def plot_clustered(self, method: str, n_clusters: int):
-        """Scatter com clusters e convex hulls, e anotações de keywords."""
+    def plot_clusters(
+        self,
+        method: str = 'pca',
+        n_clusters: int = 5
+    ) -> Optional[plt.Figure]:
+        """2D scatter colored by cluster with convex‐hull overlays and labels."""
         if self.doc_embeddings is None:
-            logging.error("Embeddings não carregados.")
+            logging.error("No embeddings loaded for cluster plot.")
             return None
-
-        labels = self._cluster_embeddings(self.doc_embeddings, n_clusters)
-        if labels is None: return None
-
-        red = self._reduce_dimensionality(self.doc_embeddings, method)
-        if red is None: return None
+        # First reduce and then cluster on reduced to match visualisation
+        reduced = self._reduce_dimensionality(self.doc_embeddings, method)
+        if reduced is None:
+            return None
+        labels = self._cluster_embeddings(reduced, n_clusters)
+        if labels is None:
+            return None
 
         keywords = self._extract_cluster_keywords(labels, n_clusters)
 
-        fig, ax = plt.subplots(figsize=(18,14))
-        colors = plt.cm.tab20(np.linspace(0,1,n_clusters))
-        centroids = []
+        fig, ax = plt.subplots(figsize=(14,10))
+        palette = plt.cm.tab10(np.linspace(0,1,n_clusters))
 
-        for i in range(n_clusters):
-            pts = red[labels==i]
-            if len(pts)>=1:
-                centroids.append(pts.mean(axis=0))
-                if len(pts)>=3:
-                    try:
-                        hull = ConvexHull(pts)
-                        for s in hull.simplices:
-                            ax.fill(pts[s,0], pts[s,1],
-                                    color=colors[i], alpha=0.25,
-                                    edgecolor='grey', linewidth=0.5)
-                    except Exception:
-                        pass
-            else:
-                centroids.append(None)
+        # Draw convex hulls
+        for cid in range(n_clusters):
+            pts = reduced[labels==cid]
+            if pts.shape[0] >= 3:
+                hull = ConvexHull(pts)
+                poly = pts[hull.vertices]
+                ax.fill(poly[:,0], poly[:,1], color=palette[cid], alpha=0.2)
 
-        ax.scatter(red[:,0], red[:,1],
-                   c=[colors[l] for l in labels],
-                   s=60, alpha=0.8,
-                   edgecolors='black', linewidths=0.5)
+        # Plot points
+        ax.scatter(
+            reduced[:,0], reduced[:,1],
+            c=[palette[l] for l in labels],
+            edgecolor='k', alpha=0.8
+        )
 
-        for i, cent in enumerate(centroids):
-            if cent is not None:
-                ax.annotate(
-                    keywords[i], (cent[0], cent[1]),
-                    ha='center', va='center', weight='bold',
-                    bbox=dict(boxstyle="round,pad=0.5",
-                              fc="white", ec=colors[i], lw=2, alpha=0.9)
+        # Annotate cluster centers
+        for cid in range(n_clusters):
+            pts = reduced[labels==cid]
+            if pts.size:
+                center = pts.mean(axis=0)
+                ax.text(
+                    center[0], center[1], keywords[cid],
+                    fontsize=12, fontweight='bold', ha='center', va='center',
+                    bbox=dict(facecolor='white', alpha=0.7, pad=2)
                 )
 
-        ax.set_title(f"Clusters ({method.upper()}, k={n_clusters})", fontsize=16)
+        ax.set_title(f"Clusters ({method.upper()} | k={n_clusters})")
         ax.axis('off')
         plt.tight_layout()
         return fig
 
-    def run_interactive_visualization(self):
-        """Menu interativo no console para gerar plots."""
+    def interactive_console(self) -> None:
+        """Basic console UI to choose and display plots."""
         if self.doc_embeddings is None:
-            print("⚠ Não foi possível carregar embeddings.")
+            print("Embeddings not available. Generate first.")
             return
-
-        print("\n1. Visualização simples\n2. Visualização com clusters")
-        choice = input("Opção (1/2): ").strip()
-        while choice not in {"1","2"}:
-            choice = input("Digite 1 ou 2: ").strip()
-
-        method = input("Método (tsne, umap, pca): ").strip().lower()
-        while method not in {"tsne","umap","pca"}:
-            method = input("Método inválido. Escolha tsne, umap ou pca: ").strip().lower()
-
-        fig = None
-        if choice=="1":
-            fig = self.plot_clean(method)
+        choice = input("1) Scatter plot  2) Cluster plot  (enter 1 or 2): ").strip()
+        method = input("Reduction method (pca, tsne, umap): ").strip().lower()
+        if choice == '1':
+            fig = self.plot_scatter(method)
         else:
-            k = int(input(f"Número de clusters (2–{len(self.doc_names)}): ").strip())
-            fig = self.plot_clustered(method, k)
-
+            k = int(input("Number of clusters: ").strip() or "5")
+            fig = self.plot_clusters(method, k)
         if fig:
-            print("Mostrando gráfico. Feche a janela para continuar.")
+            print("Displaying plot. Close window to continue.")
             plt.show()
         else:
-            print("Erro ao gerar gráfico.")
+            print("Failed to generate plot.")

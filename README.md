@@ -1,99 +1,156 @@
-<p align="center">
-  <img src="data/logo.png" alt="Logo do Projeto" width="200">
-</p>
+# Scholar Dashboard
 
-# Jala Scholar - Dashboard de Busca de Documentação Técnica
+An end-to-end Semantic Search and Visualization platform for scientific literature. It ingests article metadata from CrossRef, downloads PDFs or HTML, cleans and preprocesses text, generates embeddings with Sentence Transformers, stores them, and provides a Streamlit-based UI for semantic search and cluster visualization.
 
-## 📖 Descrição do Projeto
+---
 
-O **Jala Scholar** é um dashboard interativo desenvolvido em Python utilizando o framework Streamlit. Ele permite realizar buscas semânticas em uma coleção de documentos técnicos, visualizar os resultados de forma interativa e explorar clusters de documentos com base em embeddings semânticos. O objetivo principal é facilitar a navegação e a análise de grandes volumes de documentação técnica.
+## Features
 
-## 🚀 Funcionalidades
+- **Article Link Extraction**: Queries CrossRef API for a bibliographic search term, filters for full-text availability, and saves article titles, DOIs, and URLs.
+- **Article Download & Processing**: Downloads each article (PDF or HTML), extracts text (PyPDF2 for PDF, BeautifulSoup for HTML), cleans and normalizes whitespace.
+- **Text Cleaning**: Removes GitHub menus, non-ASCII characters, and extra whitespace; preserves only meaningful content.
+- **Embedding Generation**: Converts cleaned document text into 768‑dimensional vectors using a pretrained `sentence-transformers/all-mpnet-base-v2` model, saved as a pickle file.
+- **Semantic Search**: Loads embeddings, encodes user queries into vectors, computes cosine similarity, and returns top‑N most relevant documents.
+- **Cluster Visualization**: Reduces dimensionality (PCA, t‑SNE, or UMAP), performs K‑Means clustering, and renders scatter plots with convex hulls and keywords.
+- **Streamlit Dashboard**:
+  - **Search Tab**: Enter natural language queries, view ranked results, and read selected documents with optional term highlighting.
+  - **Visualization Tab**: Choose between scatter or clustered views, select reduction method, and adjust cluster count interactively.
 
-- **Busca Semântica**: Utilize consultas em linguagem natural para encontrar documentos relevantes com base em similaridade semântica.
-- **Visualização de Documentos**: Exiba o conteúdo dos documentos encontrados
-- **Visualização de Clusters**: Explore agrupamentos de documentos utilizando técnicas de redução de dimensionalidade e clustering.
+---
 
-## 🛠️ Algoritmos e Modelos Utilizados
+## Getting Started
 
-1. **Embeddings Semânticos**:
+### Prerequisites
 
-   - Os documentos são representados como vetores em um espaço de alta dimensionalidade utilizando embeddings gerados por modelos de linguagem pré-treinados, como BERT ou Sentence Transformers.
+- Python 3.10 or higher
+- `pip` for dependency installation
 
-2. **Busca Semântica**:
+### Installation
 
-   - A similaridade entre a consulta e os documentos é calculada utilizando a métrica de similaridade de cosseno.
+1. **Clone the repository**
 
-3. **Redução de Dimensionalidade**:
+   ```bash
+   git clone https://github.com/yourusername/scholar-dashboard.git
+   cd scholar-dashboard
+   ```
 
-   - Técnicas como t-SNE, UMAP e PCA são utilizadas para projetar os embeddings em um espaço de 2D ou 3D para visualização.
+2. **Create a virtual environment**
 
-4. **Clustering**:
-   - Algoritmos como K-Means são aplicados para agrupar documentos com base em seus embeddings semânticos.
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-## 📚 Bibliotecas Utilizadas
+3. **Install dependencies**
 
-- **Streamlit**: Para criação do dashboard interativo.
-- **Sentence Transformers**: Para geração de embeddings semânticos.
-- **Scikit-learn**: Para clustering e redução de dimensionalidade.
-- **Matplotlib/Seaborn**: Para visualização de dados.
-- **Pandas**: Para manipulação de dados tabulares.
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 📁 Estrutura do Projeto
+4. **Generate embeddings** (optional if you want fresh embeddings):
+   ```bash
+   python src/processing/generate_embeddings.py
+   ```
+
+### Running the Pipeline
+
+The `main.py` script orchestrates the full pipeline:
 
 ```bash
-capstone-main/
-├── app/
-│   ├── dashboard.py  # Código principal do dashboard
-├── data/
-│   ├── processed/    # Documentos processados
-│   ├── raw/          # Documentos brutos
-├── src/
-│   ├── search/       # Algoritmos de busca semântica
-│   ├── visualization/ # Funções de visualização
-├── requirements.txt  # Dependências do projeto
-├── README.md         # Este arquivo
+python main.py
 ```
 
-## ▶️ Como Iniciar o Projeto
+It will:
 
-1. **Pré-requisitos**:
+1. Extract article links via CrossRef
+2. Download and extract text
+3. Clean and preprocess articles
+4. Generate and save embeddings
+5. Launch the Streamlit dashboard
 
-   - Python 3.10
-   - Pip para gerenciamento de pacotes
+### Launching the Dashboard
 
-2. **Instalação**:
+If embeddings already exist, you can directly start:
 
-   - Clone o repositório:
+```bash
+streamlit run app/dashboard.py --server.fileWatcherType none
+```
 
-     ```bash
-     git clone <URL_DO_REPOSITORIO>
-     cd capstone-main
-     ```
+---
 
-   - Instale as dependências:
+## Project Structure
 
-     ```bash
-     pip install -r requirements.txt
-     ```
+```
+├── data/
+│   ├── raw/                # raw JSON links and downloaded PDFs/TXT
+│   │   ├── article_links.json
+│   │   └── articles/
+│   └── processed/          # cleaned article text files
+├── embeddings/             # pickled embeddings
+│   └── document_embeddings.pkl
+├── src/
+│   ├── scraping/
+│   │   ├── extract_articles.py
+│   │   └── download_articles.py
+│   ├── processing/
+│   │   ├── generate_embeddings.py
+│   │   └── text_cleaning.py
+│   ├── search/
+│   │   └── semantic_search.py
+│   └── visualization/
+│       └── embedding_visualizer.py
+├── app/
+│   └── dashboard.py        # Streamlit app
+├── main.py                 # Pipeline orchestration
+├── requirements.txt
+└── README.md
+```
 
-3. **Preparação dos Dados**:
+---
 
-   - O programa baixará automaticamente os arquivos do GitHub caso você não tenha eles. Fique tranquilo!
-   - Basta iniciar o arquivo main.py
+## Dependencies
 
-4. **Executando o Dashboard**:
+- `requests` and `bs4` for HTTP and HTML parsing
+- `PyPDF2` for PDF text extraction
+- `crossrefapi` for metadata retrieval
+- `sentence-transformers` & `torch` for embeddings
+- `scikit-learn` for clustering, dimensionality reduction, and similarity metrics
+- `umap-learn` for UMAP
+- `streamlit` for interactive UI
 
-   - Certifique-se de estar na raíz do projeto.
-   - Inicie o arquivo main.py com o comando:
+List in `requirements.txt`:
 
-     ```bash
-     python main.py
-     ```
+```
+requests
+beautifulsoup4
+PyPDF2
+crossrefapi
+sentence-transformers
+torch
+scikit-learn
+umap-learn
+streamlit
+```
 
-   - Acesse o dashboard no navegador em `http://localhost:8501`.
-   - **PS:** Caso você não tenha os arquivos baixados e pré-processados, a execução inicial pode demorar alguns vários minutos.
+---
 
-## 👨‍💻 Autor
+## Models
 
-- Diogines Barbosa
+- **Embedding Model**: `all-mpnet-base-v2` from Sentence Transformers—balance of speed and semantic accuracy.
+- **Clustering**: K‑Means for fixed clusters, with optional dimensionality reduction (PCA or UMAP).
+- **Visualization**: Matplotlib-based scatter plots, convex hulls, and annotations.
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch
+3. Commit your changes
+4. Open a pull request
+
+---
+
+## License
+
+MIT License © Your Name
