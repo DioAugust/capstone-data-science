@@ -1,76 +1,85 @@
-# Scholar Dashboard
+# Painel Scholar
 
-An end-to-end Semantic Search and Visualization platform for scientific literature. It ingests article metadata from CrossRef, downloads PDFs or HTML, cleans and preprocesses text, generates embeddings with Sentence Transformers, stores them, and provides a Streamlit-based UI for semantic search and cluster visualization.
+Uma plataforma completa de Busca Semântica e Visualização para literatura científica. Ela:
 
----
-
-## Features
-
-- **Article Link Extraction**: Queries CrossRef API for a bibliographic search term, filters for full-text availability, and saves article titles, DOIs, and URLs.
-- **Article Download & Processing**: Downloads each article (PDF or HTML), extracts text (PyPDF2 for PDF, BeautifulSoup for HTML), cleans and normalizes whitespace.
-- **Text Cleaning**: Removes GitHub menus, non-ASCII characters, and extra whitespace; preserves only meaningful content.
-- **Embedding Generation**: Converts cleaned document text into 768‑dimensional vectors using a pretrained `sentence-transformers/all-mpnet-base-v2` model, saved as a pickle file.
-- **Semantic Search**: Loads embeddings, encodes user queries into vectors, computes cosine similarity, and returns top‑N most relevant documents.
-- **Cluster Visualization**: Reduces dimensionality (PCA, t‑SNE, or UMAP), performs K‑Means clustering, and renders scatter plots with convex hulls and keywords.
-- **Streamlit Dashboard**:
-  - **Search Tab**: Enter natural language queries, view ranked results, and read selected documents with optional term highlighting.
-  - **Visualization Tab**: Choose between scatter or clustered views, select reduction method, and adjust cluster count interactively.
+1. Extrai metadados de artigos via CrossRef  
+2. Faz download em PDF ou HTML  
+3. Limpa e pré-processa o texto  
+4. Gera embeddings com Sentence Transformers  
+5. Armazena vetores em banco vetorial  
+6. Disponibiliza UI em Streamlit para busca semântica e visualização de clusters
 
 ---
 
-## Getting Started
+## Funcionalidades
 
-### Prerequisites
+- **Extração de Links de Artigos**  
+  Consulta a API CrossRef com termos bibliográficos, filtra apenas itens com texto completo e salva título, DOI e URL.  
+- **Download & Processamento de Artigos**  
+  Baixa cada artigo (PDF ou HTML), extrai texto via PyPDF2 (PDF) ou BeautifulSoup (HTML) e normaliza espaços.  
+- **Limpeza de Texto**  
+  Remove menus do GitHub, caracteres não-ASCII e excesso de espaços, preservando apenas o conteúdo relevante.  
+- **Geração de Embeddings**  
+  Converte texto limpo em vetores de 768 dimensões usando o modelo pré-treinado `sentence-transformers/all-mpnet-base-v2`, armazenados em arquivo pickle.  
+- **Busca Semântica**  
+  Carrega embeddings, codifica consultas do usuário em vetores, calcula similaridade de cosseno e retorna os N artigos mais relevantes.  
+- **Visualização de Clusters**  
+  Reduz dimensionalidade (PCA, t-SNE ou UMAP), aplica K-Means e gera gráficos de dispersão com invólucros convexos e palavras-chave.  
+- **Dashboard em Streamlit**  
+  - **Aba de Busca**: insira consultas em linguagem natural, veja resultados ordenados e leia artigos com realce opcional de termos.  
+  - **Aba de Visualização**: escolha visualização simples ou por clusters, selecione método de redução e ajuste número de clusters interativamente.
 
-- Python 3.10 or higher
-- `pip` for dependency installation
+---
 
-### Installation
+## Como Começar
 
-1. **Clone the repository**
+### Pré-requisitos
 
+- Python 3.10 ou superior  
+- `pip` para instalar dependências  
+
+### Instalação
+
+1. **Clone o repositório**  
    ```bash
-   git clone https://github.com/yourusername/scholar-dashboard.git
+   git clone https://github.com/seuusuario/scholar-dashboard.git
    cd scholar-dashboard
    ```
 
-2. **Create a virtual environment**
-
+2. **Crie um ambiente virtual**  
    ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
 
-3. **Install dependencies**
-
+3. **Instale dependências**  
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Generate embeddings** (optional if you want fresh embeddings):
+4. **(Opcional) Gere embeddings frescos**  
    ```bash
    python src/processing/generate_embeddings.py
    ```
 
-### Running the Pipeline
+### Executando o Pipeline
 
-The `main.py` script orchestrates the full pipeline:
+Use o script principal para orquestrar todas as etapas:
 
 ```bash
 python main.py
 ```
 
-It will:
+Ele irá:  
+1. Extrair links de artigos via CrossRef  
+2. Fazer download e extrair texto  
+3. Limpar e pré-processar  
+4. Gerar e salvar embeddings  
+5. Iniciar o dashboard Streamlit  
 
-1. Extract article links via CrossRef
-2. Download and extract text
-3. Clean and preprocess articles
-4. Generate and save embeddings
-5. Launch the Streamlit dashboard
+### Iniciando o Dashboard
 
-### Launching the Dashboard
-
-If embeddings already exist, you can directly start:
+Se já tiver embeddings, execute diretamente:
 
 ```bash
 streamlit run app/dashboard.py --server.fileWatcherType none
@@ -78,15 +87,15 @@ streamlit run app/dashboard.py --server.fileWatcherType none
 
 ---
 
-## Project Structure
+## Estrutura do Projeto
 
 ```
 ├── data/
-│   ├── raw/                # raw JSON links and downloaded PDFs/TXT
+│   ├── raw/                
 │   │   ├── article_links.json
-│   │   └── articles/
-│   └── processed/          # cleaned article text files
-├── embeddings/             # pickled embeddings
+│   │   └── articles/      
+│   └── processed/         
+├── embeddings/            
 │   └── document_embeddings.pkl
 ├── src/
 │   ├── scraping/
@@ -98,28 +107,27 @@ streamlit run app/dashboard.py --server.fileWatcherType none
 │   ├── search/
 │   │   └── semantic_search.py
 │   └── visualization/
-│       └── cluster.py
+│       └── cluster_viz.py
 ├── app/
-│   └── dashboard.py        # Streamlit app
-├── main.py                 # Pipeline orchestration
-├── requirements.txt
-└── README.md
+│   └── dashboard.py       
+├── main.py                
+├── requirements.txt       
+└── README.md              
 ```
 
 ---
 
-## Dependencies
+## Dependências
 
-- `requests` and `bs4` for HTTP and HTML parsing
-- `PyPDF2` for PDF text extraction
-- `crossrefapi` for metadata retrieval
-- `sentence-transformers` & `torch` for embeddings
-- `scikit-learn` for clustering, dimensionality reduction, and similarity metrics
-- `umap-learn` for UMAP
-- `streamlit` for interactive UI
+- `requests`, `beautifulsoup4` para HTTP e parsing HTML  
+- `PyPDF2` para extração de texto em PDF  
+- `crossrefapi` para consulta a metadados  
+- `sentence-transformers` e `torch` para geração de embeddings  
+- `scikit-learn` para clusterização, redução de dimensionalidade e similaridade  
+- `umap-learn` para UMAP  
+- `streamlit` para interface interativa  
 
-List in `requirements.txt`:
-
+**requirements.txt** inclui:
 ```
 requests
 beautifulsoup4
@@ -134,17 +142,19 @@ streamlit
 
 ---
 
-## Models
+## Modelos Utilizados
 
-- **Embedding Model**: `all-mpnet-base-v2` from Sentence Transformers—balance of speed and semantic accuracy.
-- **Clustering**: K‑Means for fixed clusters, with optional dimensionality reduction (PCA or UMAP).
-- **Visualization**: Matplotlib-based scatter plots, convex hulls, and annotations.
+- **Embedding**: `all-mpnet-base-v2` (Sentence Transformers) — bom equilíbrio entre velocidade e precisão semântica.  
+- **Clusterização**: K-Means para grupos fixos, combinado com redução de dimensionalidade (PCA ou UMAP).  
+- **Visualização**: gráficos Matplotlib com dispersão, invólucros convexos e anotações de palavras-chave.
 
 ---
 
-## Contributing
+## Como Contribuir
 
-1. Fork the repo
-2. Create a feature branch
-3. Commit your changes
-4. Open a pull request
+1. Fork este repositório  
+2. Crie uma branch de feature (`git checkout -b feature/nome-da-feature`)  
+3. Faça commit das suas mudanças  
+4. Abra um Pull Request  
+
+Agradecemos suas contribuições!
